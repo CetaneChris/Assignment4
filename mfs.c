@@ -175,12 +175,12 @@ int main()
 			printf("BPB_FATSz32     = %d\n", FAT->BPB_FATSz32);
 			printf("BPB_FATSz32     = %x\n\n", FAT->BPB_FATSz32);
 		}else if(!strcmp(token[0],"stat")){
-			if(strcmp(token[1],"BAR")==0){
+/*			if(strcmp(token[1],"BAR")==0){
 				/* char name[12];
                memset(name, 0, 12);
                strncpy(name, dir[i].DIR_Name, 11);
                printf("%s        %d      %d\n", name, dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
-             */printf("File Size: 8 \n First Cluster Low: 17 \n");
+            printf("File Size: 8 \n First Cluster Low: 17 \n");
              }
              else if(strcmp(token[1],"NUM")==0)
              {
@@ -203,35 +203,31 @@ int main()
               printf("File Size: 347786 \n First Cluster Low: 5388 \n");
              }
              else
-              printf("Error: File not found");
-       }else if(!strcmp(token[0],"get")){
+              printf("Error: File not found");*/
+		}else if(!strcmp(token[0],"get")){
 			//something
 		}else if(!strcmp(token[0],"cd")){
 			//something
 		}else if(!strcmp(token[0],"ls")){
-			         int root_offset = (BPB_NumFATs * BPB_FATSz32 * BPB_BytsPerSec) + (BPB_RsvdSecCnt * BPB_BytsPerSec );
+			int root_offset = (BPB_NumFATs * BPB_FATSz32 * BPB_BytsPerSec) + (BPB_RsvdSecCnt * BPB_BytsPerSec );
 
+			// printf("%d %x", root_offset, root_offset);
+			fseek( fp, root_offset, SEEK_SET );
 
-         // printf("%d %x", root_offset, root_offset);
-         fseek( fp, root_offset, SEEK_SET );
+			printf("\n\n");
 
-          printf("\n\n");
+			int i;
+			for(i=0; i<16; i++)
+				fread(&dir[i], 32, 1, fp);
 
-          int i=0;
-          for( i=0; i<16; i++)
-            {
-             fread(&dir[i], 32, 1, fp);
-            }
-          for( i=0; i<16; i++)
-            {
-             if( dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20 )
-              {
-               char name[12];
-               memset(name, 0, 12);
-               strncpy(name, dir[i].DIR_Name, 11);
-               printf("%s        %d      %d\n", name, dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
-              }
-            } 
+			for(i=0; i<16; i++){
+				if( dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20 ){
+					char name[12];
+					memset(name, 0, 12);
+					strncpy(name, dir[i].DIR_Name, 11);
+					printf("%s\t%d\t%d\n", name, dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
+				}
+			} 
 		}else if(!strcmp(token[0],"read")){
 			// Move to position token[1] and begin reading
 			char* buffer;
