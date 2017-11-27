@@ -1,3 +1,27 @@
+// The MIT License (MIT)
+// 
+// Copyright (c) 2016, 2017 Trevor Bakker 
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/wait.h>
@@ -5,7 +29,6 @@
 #include <errno.h>
 #include <string.h>
 #include <signal.h>
-#include <stdint.h>
 
 #define WHITESPACE " \t\n"      // We want to split our command line up into tokens
                                 // so we need to define what delimits our tokens.
@@ -14,243 +37,146 @@
 
 #define MAX_COMMAND_SIZE 255    // The maximum command-line size
 
-#define MAX_NUM_ARGUMENTS 11     // Mav shell only supports eleven arguments
+#define MAX_NUM_ARGUMENTS 5     // Mav shell only supports five arguments
 
-short BPB_RsvdSecCnt;
-short BPB_BytsPerSec;
-int BPB_FATSz32;
-unsigned char BPB_SecPerClus;
-unsigned char BPB_NumFATs;
+typedef int bool;
+#define true 1
+#define false 0
+
+struct fat_details{
+	int BPB_BytesPerSec;
+	int BPB_SecPerClus;
+	int BPB_RsvdSecCnt;
+	int BPB_NumFATS;
+	int BPB_FATSz32;
+};
 
 int LBAToOffset(int32_t sector){
 	return ((sector-2) * BPB_BytsPerSec) + (BPB_BytsPerSec * BPB_RsvdSecCnt) + (BPB_NumFATs * BPB_FATSz32 * BPB_BytsPerSec);
 }
 
-
 struct __attribute__((__packed__)) DirectoryEntry {
 	char DIR_Name[11];
-           uint8_t DIR_Attr;
-           uint8_t Unused1[8];
-           uint16_t DIR_FirstClusterHigh;
-           uint8_t Unused2[4];
-           uint16_t DIR_FirstClusterLow;
-           uint32_t DIR_FileSize;
+	uint8_t DIR_Attr;
+	uint8_t Unused1[8];
+	uint16_t DIR_FirstClusterHigh;
+	uint8_t Unused2[4];
+	uint16_t DIR_FirstClusterLow;
+	uint32_t DIR_FileSize;
 };
 
 struct DirectoryEntry dir[16];
 
 int main()
 {
+	char * cmd_str = (char*) malloc( MAX_COMMAND_SIZE );
 
-  char * cmd_str = (char*) malloc( MAX_COMMAND_SIZE );
+	bool state = false;
+	bool been_closed = false;
+	FILE *img;
+	char buffer[100];
+	int  i;
+	struct fat_details* FAT = malloc(sizeof(struct fat_details));
 
-  char command_history[15][255];
-  int command_counter=0;
+	while( 1 ){
+		// Print out the msh prompt
+		printf ("mfs> ");
 
+		// Read the command from the commandline.  The
+		// maximum command that will be read is MAX_COMMAND_SIZE
+		// This while command will wait here until the user
+		// inputs something since fgets returns NULL when there
+		// is no input
+		while( !fgets (cmd_str, MAX_COMMAND_SIZE, stdin) );
 
-  while( 1 )
-  {
-    // Print out the msh prompt
-    printf ("msh> ");
+		/* Parse input */
+		char *token[MAX_NUM_ARGUMENTS];
 
-    // Read the command from the commandline.  The
-    // maximum command that will be read is MAX_COMMAND_SIZE
-    // This while command will wait here until the user
-    // inputs something since fgets returns NULL when there
-    // is no input
-    while( !fgets (cmd_str, MAX_COMMAND_SIZE, stdin) );
+		int   token_count = 0;
 
-        if(strlen(cmd_str)<2)
-                continue;
+		// Pointer to point to the token
+		// parsed by strsep
+		char *arg_ptr;
 
-    /* Parse input */
-    char *token[MAX_NUM_ARGUMENTS];
+		char *working_str  = strdup( cmd_str ); 
 
-    int   token_count = 0;
+		// we are going to move the working_str pointer so
+		// keep track of its original value so we can deallocate
+		// the correct amount at the end
+		char *working_root = working_str;
 
-    // Pointer to point to the token
-    // parsed by strsep
- char *arg_ptr;
+		// Tokenize the input stringswith whitespace used as the delimiter
+		while (((arg_ptr = strsep(&working_str, WHITESPACE)) != NULL) && (token_count<MAX_NUM_ARGUMENTS)){
+			token[token_count] = strndup( arg_ptr, MAX_COMMAND_SIZE );
+			if( strlen( token[token_count] ) == 0 )
+				token[token_count] = NULL;
+			token_count++;
+		}
 
-    char *working_str  = strdup( cmd_str );
+		// Now print the tokenized input as a debug check
+		// TODO Remove this code and replace with your shell functionality
 
-    // we are going to move the working_str pointer so
-    // keep track of its original value so we can deallocate
-    // the correct amount at the end
-    char *working_root = working_str;
+		if(!strcmp(token[0], "exit") || !strcmp(token[0], "quit")){
+			free(working_root);             //Checking for exit condition, freeing used data, and exiting
+			if(state)
+				fclose(img);
+			break;
+		}else if(strcmp(token[0],"open") && been_closed && !state){
+			fprintf(stderr, "Error: File system image must be opened first\n");
+//			free(working_root);
+//			continue;
+		}else if(strcmp(token[0],"open") && !state){
+			fprintf(stderr, "Error: File system not open\n");
+//			free(working_root);
+//			continue;
+		}else if(!strcmp(token[0],"open")){
+			if(state)		// If a file is already open
+				fprintf(stderr,"Error: File system image already open\n");
+			else if(token[1] != NULL){	// Ensuring a file was selected
+				img   = fopen(token[1], "r");	// Open file in read only mode
+				if(img == NULL)		// If file not found, print error
+					fprintf(stderr,"Error: File system image not found\n");
+				else{
+					state = true;		// Set program state to open
 
-    // Tokenize the input stringswith whitespace used as the delimiter
-    while ( ( (arg_ptr = strsep(&working_str, WHITESPACE ) ) != NULL) &&
-              (token_count<MAX_NUM_ARGUMENTS))
-    {
-      token[token_count] = strndup( arg_ptr, MAX_COMMAND_SIZE );
-      if( strlen( token[token_count] ) == 0 )
-      {
-        token[token_count] = NULL;
-      }
-        token_count++;
-    }
+					// Ensure buffer location
+					fseek(img,11,SEEK_SET);
 
-    // Now print the tokenized input as a debug check
-    // \TODO Remove this code and replace with your shell functionality
-   if((strcmp(token[0],"exit")==0) || (strcmp(token[0],"quit") == 0)) /*exit the shell*/
-         {
-                 free(working_root);
-                 break;
-         }
+					fread(&FAT->BPB_BytesPerSec, 2, 1, img);	// Retrieve attributes for 'info'
+					fread(&FAT->BPB_SecPerClus, 1, 1, img);
+					fread(&FAT->BPB_RsvdSecCnt, 2, 1, img);
+					fread(&FAT->BPB_NumFATS, 1, 1, img);
 
-         else if(strcmp(token[0],"open")==0)
-         {
-           if(strcmp(token[1],"fat32.img")==0)
-            {
-              if(fp!=NULL)
-             {
-              printf("Error: File system image already open \n");
-             }
-              else
-             {
-             fp=fopen("fat32.img", "r");
-             }
-           }
-           else
-            {
-             printf("Error: File system image not found \n");
-            }
-          }
+					fseek(img,36,SEEK_SET);
 
+					fread(&FAT->BPB_FATSz32, 4, 1, img);
+				}
+			}
+		}else if(!strcmp(token[0],"close")){
+			if(state){	// If file open, then close it
+				state = false;		// Set program state to closed
+				been_closed = false;	// Program knows that 'close' has been ran
+				fclose(img);		// Close the file
+			}else		// Else, print error
+				fprintf(stderr,"Error: File system not open\n");
+		}else if(!strcmp(token[0],"info")){
+			printf("BPB_BytesPerSec = %d\n", FAT->BPB_BytesPerSec);
+			printf("BPB_BytesPerSec = %x\n\n", FAT->BPB_BytesPerSec);
 
- else if(strcmp(token[0],"close")==0)
-         {
-           if(strcmp(token[1],"fat32.img")==0)
-            {
-              if(fp==NULL)
-             {
-              printf("Error: File system image must be opened first \n");
-             }
-              else
-             {
-             fclose(fp);
-             fp=NULL;
-             }
-           }
-           else
-            {
-             printf("Error: File system image not found \n");
-            }
-          }
+			printf("BPB_SecPerClus  = %d\n", FAT->BPB_SecPerClus);
+			printf("BPB_SecPerClus  = %x\n\n", FAT->BPB_SecPerClus);
 
+			printf("BPB_RsvdSecCnt  = %d\n", FAT->BPB_RsvdSecCnt);
+			printf("BPB_RsvdSecCnt  = %x\n\n", FAT->BPB_RsvdSecCnt);
 
-       else if(strcmp(token[0],"info")==0)
-         {
-           if(fp==NULL)
-             {
-              printf("Error: File system image must be opened first \n");
-             }
-              else
-             {
+			printf("BPB_NumFATS     = %d\n", FAT->BPB_NumFATS);
+			printf("BPB_NumFATS     = %x\n\n", FAT->BPB_NumFATS);
 
-          fseek(fp, 11, SEEK_SET);
-          fread(&BPB_BytsPerSec, 2, 1, fp);
-          printf("BPB_BytsPerSec: %d\n", BPB_BytsPerSec);
-          printf("BPB_BytsPerSec: %x\n", BPB_BytsPerSec);
-
-          fseek(fp, 13, SEEK_SET);
-          fread(&BPB_SecPerClus, 1, 1, fp);
-          printf("BPB_SecPerClus: %d\n", BPB_SecPerClus);
-          printf("BPB_SecPerClus: %x\n", BPB_SecPerClus);
-
-          fseek(fp, 14, SEEK_SET);
-          fread(&BPB_RsvdSecCnt, 2, 1, fp);
-          printf("BPB_RsvdSecCnt: %d\n", BPB_RsvdSecCnt);
-          printf("BPB_RsvdSecCnt: %x\n", BPB_RsvdSecCnt);
-
-          fseek(fp, 16, SEEK_SET);
-          fread(&BPB_NumFATs, 1, 1, fp);
-          printf("BPB_NumFATs: %d\n", BPB_NumFATs);
-          printf("BPB_NumFATs: %x\n", BPB_NumFATs);
-
-          fseek(fp, 36, SEEK_SET);
-          fread(&BPB_FATSz32, 4, 1, fp);
-          printf("BPB_FATSz32: %d\n", BPB_FATSz32);
-          printf("BPB_FATSz32: %x\n", BPB_FATSz32);
-            
-          int file_offset = LBAToOffset(17);
-          fseek(fp, file_offset, SEEK_SET);
-          uint8_t value;
-          fread(&value, 1, 1, fp);
-          printf("Read: %d\n", value);
-
-     
-          }
-        }
-        
-         /* else if(strcmp(token[0],"cd")==0)  /*changing directory*
-         {
-                if(token[1]==NULL)
-                {
-            printf("Enter the path properly \n");
-        }
-         else
-        {
-             chdir(token[1]);
-            }
-                free(working_root);
-                continue;
-         }*/
-
-
-        else if(strcmp(token[0],"cd") == 0)
-			shell_cd(token[1]); 
-                 
-
-         else if(strcmp(token[0],"ls")==0)
-         {
-          if(fp==NULL)
-             {
-              printf("Error: File system image must be opened first \n");
-             }
-              else
-             {
-     
-
-         int root_offset = (BPB_NumFATs * BPB_FATSz32 * BPB_BytsPerSec) + (BPB_RsvdSecCnt * BPB_BytsPerSec );
-
-
-         // printf("%d %x", root_offset, root_offset);
-         fseek( fp, root_offset, SEEK_SET );
-
-          printf("\n\n");
-
-          int i=0;
-          for( i=0; i<16; i++)
-            {
-             fread(&dir[i], 32, 1, fp);
-            }
-          for( i=0; i<16; i++)
-            {
-             if( dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20 )
-              {
-               char name[12];
-               memset(name, 0, 12);
-               strncpy(name, dir[i].DIR_Name, 11);
-               printf("%s        %d      %d\n", name, dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
-              }
-            } 
-          }
-      }
-        
- 
-     else if(strcmp(token[0],"stat")==0)
-         {
-          if(fp==NULL)
-             {
-              printf("Error: File system image must be opened first \n");
-             }
-              else
-             {
-              if(strcmp(token[1],"BAR")==0)
-              {
-              /* char name[12];
+			printf("BPB_FATSz32     = %d\n", FAT->BPB_FATSz32);
+			printf("BPB_FATSz32     = %x\n\n", FAT->BPB_FATSz32);
+		}else if(!strcmp(token[0],"stat")){
+			if(strcmp(token[1],"BAR")==0){
+				/* char name[12];
                memset(name, 0, 12);
                strncpy(name, dir[i].DIR_Name, 11);
                printf("%s        %d      %d\n", name, dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
@@ -277,13 +203,44 @@ int main()
               printf("File Size: 347786 \n First Cluster Low: 5388 \n");
              }
              else
-             {
               printf("Error: File not found");
-             }
-           }
-       }
- 
-    free( working_root );
-  }
-  return 0;
+       }else if(!strcmp(token[0],"get")){
+			//something
+		}else if(!strcmp(token[0],"cd")){
+			//something
+		}else if(!strcmp(token[0],"ls")){
+			         int root_offset = (BPB_NumFATs * BPB_FATSz32 * BPB_BytsPerSec) + (BPB_RsvdSecCnt * BPB_BytsPerSec );
+
+
+         // printf("%d %x", root_offset, root_offset);
+         fseek( fp, root_offset, SEEK_SET );
+
+          printf("\n\n");
+
+          int i=0;
+          for( i=0; i<16; i++)
+            {
+             fread(&dir[i], 32, 1, fp);
+            }
+          for( i=0; i<16; i++)
+            {
+             if( dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20 )
+              {
+               char name[12];
+               memset(name, 0, 12);
+               strncpy(name, dir[i].DIR_Name, 11);
+               printf("%s        %d      %d\n", name, dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
+              }
+            } 
+		}else if(!strcmp(token[0],"read")){
+			// Move to position token[1] and begin reading
+			char* buffer;
+		}else if(!strcmp(token[0],"volume")){
+			//something
+		}
+
+		free(working_root);
+
+	}
+	return 0;
 }
