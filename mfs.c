@@ -24,11 +24,11 @@
 
 #include <stdio.h>
 #include <unistd.h>
-#include <sys/wait.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 #include <signal.h>
+#include <stdint.h>
 
 #define WHITESPACE " \t\n"      // We want to split our command line up into tokens
                                 // so we need to define what delimits our tokens.
@@ -44,16 +44,17 @@ typedef int bool;
 #define false 0
 
 struct fat_details{
-	int BPB_BytesPerSec;
-	int BPB_SecPerClus;
-	int BPB_RsvdSecCnt;
-	int BPB_NumFATS;
-	int BPB_FATSz32;
+	int  BPB_BytesPerSec;
+	int  BPB_SecPerClus;
+	int  BPB_RsvdSecCnt;
+	int  BPB_NumFATS;
+	int  BPB_FATSz32;
+	char name[11];
 };
 
-int LBAToOffset(int32_t sector){
-	return ((sector-2) * BPB_BytsPerSec) + (BPB_BytsPerSec * BPB_RsvdSecCnt) + (BPB_NumFATs * BPB_FATSz32 * BPB_BytsPerSec);
-}
+/*int LBAToOffset(int32_t sector){
+	return ((sector-2) * FAT->BPB_BytsPerSec) + (FAT->BPB_BytsPerSec * FAT->BPB_RsvdSecCnt) + (FAT->BPB_NumFATs * FAT->BPB_FATSz32 * FAT->BPB_BytsPerSec);
+}*/
 
 struct __attribute__((__packed__)) DirectoryEntry {
 	char DIR_Name[11];
@@ -150,6 +151,10 @@ int main()
 					fseek(img,36,SEEK_SET);
 
 					fread(&FAT->BPB_FATSz32, 4, 1, img);
+
+					fseek(img,43,SEEK_SET);
+
+					fread(&FAT->name, 11, 1, img);
 				}
 			}
 		}else if(!strcmp(token[0],"close")){
@@ -209,16 +214,16 @@ int main()
 		}else if(!strcmp(token[0],"cd")){
 			//something
 		}else if(!strcmp(token[0],"ls")){
-			int root_offset = (BPB_NumFATs * BPB_FATSz32 * BPB_BytsPerSec) + (BPB_RsvdSecCnt * BPB_BytsPerSec );
+			int root_offset = (FAT->BPB_NumFATS * FAT->BPB_FATSz32 * FAT->BPB_BytesPerSec) + (FAT->BPB_RsvdSecCnt * FAT->BPB_BytesPerSec);
 
 			// printf("%d %x", root_offset, root_offset);
-			fseek( fp, root_offset, SEEK_SET );
+			fseek( img, root_offset, SEEK_SET );
 
 			printf("\n\n");
 
 			int i;
 			for(i=0; i<16; i++)
-				fread(&dir[i], 32, 1, fp);
+				fread(&dir[i], 32, 1, img);
 
 			for(i=0; i<16; i++){
 				if( dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20 ){
@@ -233,6 +238,7 @@ int main()
 			char* buffer;
 		}else if(!strcmp(token[0],"volume")){
 			//something
+			
 		}
 
 		free(working_root);
@@ -240,3 +246,4 @@ int main()
 	}
 	return 0;
 }
+
