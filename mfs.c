@@ -143,7 +143,8 @@ int main()
 					// Ensure buffer location
 					fseek(img,11,SEEK_SET);
 
-					fread(&FAT->BPB_BytesPerSec, 2, 1, img);	// Retrieve attributes for 'info'
+					// Retrieve attributes for 'info'
+					fread(&FAT->BPB_BytesPerSec, 2, 1, img);
 					fread(&FAT->BPB_SecPerClus, 1, 1, img);
 					fread(&FAT->BPB_RsvdSecCnt, 2, 1, img);
 					fread(&FAT->BPB_NumFATS, 1, 1, img);
@@ -152,9 +153,18 @@ int main()
 
 					fread(&FAT->BPB_FATSz32, 4, 1, img);
 
-					fseek(img,43,SEEK_SET);
+					fseek(img,71,SEEK_SET);
 
 					fread(&FAT->name, 11, 1, img);
+
+					// Fill directory array
+					int root_offset = (FAT->BPB_NumFATS * FAT->BPB_FATSz32 * FAT->BPB_BytesPerSec) + (FAT->BPB_RsvdSecCnt * FAT->BPB_BytesPerSec);
+
+//					printf("%d %x", root_offset, root_offset);
+					fseek( img, root_offset, SEEK_SET );
+
+					for(i=0; i<16; i++)
+						fread(&dir[i], 32, 1, img);
 				}
 			}
 		}else if(!strcmp(token[0],"close")){
@@ -180,8 +190,24 @@ int main()
 			printf("BPB_FATSz32     = %d\n", FAT->BPB_FATSz32);
 			printf("BPB_FATSz32     = %x\n\n", FAT->BPB_FATSz32);
 		}else if(!strcmp(token[0],"stat")){
+			int  i;
+			bool found = false;
+			char name[11];
+
+			char *in = (char*)strtok(token[1],".");
+			strncpy(&name[0],&in[0],8);
+			strncpy(&name[8],&in[1],3);
+			for(i = 0; i < 16; i++){
+				if(!strcasecmp(name,dir[i].DIR_Name)){
+					printf("Success!\n");
+					found = true;
+				}else
+					printf("dir[%d].DIR_Name = %s\n",i,name);
+			}
+			if(!found)
+				fprintf(stderr,"Error: File not found\n");
 /*			if(strcmp(token[1],"BAR")==0){
-				/* char name[12];
+				char name[12];
                memset(name, 0, 12);
                strncpy(name, dir[i].DIR_Name, 11);
                printf("%s        %d      %d\n", name, dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
@@ -214,17 +240,6 @@ int main()
 		}else if(!strcmp(token[0],"cd")){
 			//something
 		}else if(!strcmp(token[0],"ls")){
-			int root_offset = (FAT->BPB_NumFATS * FAT->BPB_FATSz32 * FAT->BPB_BytesPerSec) + (FAT->BPB_RsvdSecCnt * FAT->BPB_BytesPerSec);
-
-			// printf("%d %x", root_offset, root_offset);
-			fseek( img, root_offset, SEEK_SET );
-
-			printf("\n\n");
-
-			int i;
-			for(i=0; i<16; i++)
-				fread(&dir[i], 32, 1, img);
-
 			for(i=0; i<16; i++){
 				if( dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20 ){
 					char name[12];
@@ -237,8 +252,11 @@ int main()
 			// Move to position token[1] and begin reading
 			char* buffer;
 		}else if(!strcmp(token[0],"volume")){
-			//something
-			
+			// Print FAT->name
+			if(!strcasecmp(FAT->name, "NO NAME    "))
+				fprintf(stderr,"Error: volume name not found");
+			else
+				printf("Volume Name: %s\n", FAT->name);
 		}
 
 		free(working_root);
