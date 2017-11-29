@@ -190,7 +190,6 @@ int main()
 			printf("BPB_FATSz32     = %d\n", FAT->BPB_FATSz32);
 			printf("BPB_FATSz32     = %x\n\n", FAT->BPB_FATSz32);
 		}else if(!strcmp(token[0],"stat")){
-			int  i;
 			bool found = false;
 			char name[12], in_name[12];
 			memset(name,32,11);
@@ -199,49 +198,22 @@ int main()
 
 			strncpy(name,in,strlen(in));
 			in = strtok(NULL, ".");
-			printf("in = %s\n",in);
-			strcpy(&name[8],in);
-			printf("name = %s\n",name);
+			if(in != NULL)
+				strcpy(&name[8],in);
 			for(i = 0; i < 16; i++){
 				memset(in_name,32,11);
 				strncpy(in_name,dir[i].DIR_Name,11);
 				if(!strncasecmp(name,in_name,11)){
 					printf("Success!\n");
 					found = true;
+					break;
 				}else
 					printf("dir[%d] in_name = %s\n",i,in_name);
 			}
 			if(!found)
 				fprintf(stderr,"Error: File not found\n");
-/*			if(strcmp(token[1],"BAR")==0){
-				char name[12];
-               memset(name, 0, 12);
-               strncpy(name, dir[i].DIR_Name, 11);
-               printf("%s        %d      %d\n", name, dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
-            printf("File Size: 8 \n First Cluster Low: 17 \n");
-             }
-             else if(strcmp(token[1],"NUM")==0)
-             {
-              printf("File Size: 2560 \n First Cluster Low: 7216 \n");
-             }
-            else if(strcmp(token[1],"DEADBEEF")==0)
-             {
-              printf("File Size: 4145 \n First Cluster Low: 7465 \n");
-             }
-            else if(strcmp(token[1],"FOO")==0)
-             {
-              printf("File Size: 8 \n First Cluster Low: 16 \n");
-             }
-            else if(strcmp(token[1],"FOLDERA")==0)
-             {
-              printf("File Size: 0 \n First Cluster Low: 6099 \n");
-             }
-            else if(strcmp(token[1],"FATSPEC")==0)
-             {
-              printf("File Size: 347786 \n First Cluster Low: 5388 \n");
-             }
-             else
-              printf("Error: File not found");*/
+			else
+				printf("File Size: %d\tStarting Cluster Number: %d\n", dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
 		}else if(!strcmp(token[0],"get")){
 			//something
 		}else if(!strcmp(token[0],"cd")){
