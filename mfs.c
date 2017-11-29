@@ -52,9 +52,10 @@ struct fat_details{
 	char name[11];
 };
 
-/*int LBAToOffset(int32_t sector){
-	return ((sector-2) * FAT->BPB_BytsPerSec) + (FAT->BPB_BytsPerSec * FAT->BPB_RsvdSecCnt) + (FAT->BPB_NumFATs * FAT->BPB_FATSz32 * FAT->BPB_BytsPerSec);
-}*/
+FILE *img;
+struct fat_details* FAT;
+int LBAToOffset(int32_t sector);
+int16_t NextLB(uint32_t sector);
 
 struct __attribute__((__packed__)) DirectoryEntry {
 	char DIR_Name[11];
@@ -74,10 +75,9 @@ int main()
 
 	bool state = false;
 	bool been_closed = false;
-	FILE *img;
+	FAT = malloc(sizeof(struct fat_details));
 	char buffer[100];
 	int  i;
-	struct fat_details* FAT = malloc(sizeof(struct fat_details));
 
 	while( 1 ){
 		// Print out the msh prompt
@@ -122,15 +122,11 @@ int main()
 			if(state)
 				fclose(img);
 			break;
-		}else if(strcmp(token[0],"open") && been_closed && !state){
+		}else if(strcmp(token[0],"open") && been_closed && !state)
 			fprintf(stderr, "Error: File system image must be opened first\n");
-//			free(working_root);
-//			continue;
-		}else if(strcmp(token[0],"open") && !state){
+		else if(strcmp(token[0],"open") && !state)
 			fprintf(stderr, "Error: File system not open\n");
-//			free(working_root);
-//			continue;
-		}else if(!strcmp(token[0],"open")){
+		else if(!strcmp(token[0],"open")){
 			if(state)		// If a file is already open
 				fprintf(stderr,"Error: File system image already open\n");
 			else if(token[1] != NULL){	// Ensuring a file was selected
@@ -204,16 +200,14 @@ int main()
 				memset(in_name,32,11);
 				strncpy(in_name,dir[i].DIR_Name,11);
 				if(!strncasecmp(name,in_name,11)){
-					printf("Success!\n");
 					found = true;
 					break;
-				}else
-					printf("dir[%d] in_name = %s\n",i,in_name);
+				}
 			}
 			if(!found)
 				fprintf(stderr,"Error: File not found\n");
 			else
-				printf("File Size: %d\tStarting Cluster Number: %d\n", dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
+				printf("File Size: %d\nStarting Cluster Number: %d\n\n", dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
 		}else if(!strcmp(token[0],"get")){
 			//something
 		}else if(!strcmp(token[0],"cd")){
@@ -244,3 +238,14 @@ int main()
 	return 0;
 }
 
+int LBAToOffset(int32_t sector){
+        return ((sector-2) * FAT->BPB_BytesPerSec) + (FAT->BPB_BytesPerSec * FAT->BPB_RsvdSecCnt) + (FAT->BPB_NumFATS * FAT->BPB_FATSz32 * FAT->BPB_BytesPerSec);
+}
+
+int16_t NextLB( uint32_t sector ){
+        uint32_t FATAddress = (FAT->BPB_BytesPerSec * FAT->BPB_RsvdSecCnt) + (sector * 4);
+        int16_t val;
+        fseek(img, FATAddress, SEEK_SET);
+        fread(&val, 2, 1, img);
+        return val;
+}
