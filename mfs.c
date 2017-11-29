@@ -56,6 +56,7 @@ FILE *img;
 struct fat_details* FAT;
 int LBAToOffset(int32_t sector);
 int16_t NextLB(uint32_t sector);
+int search(char*);
 
 struct __attribute__((__packed__)) DirectoryEntry {
 	char DIR_Name[11];
@@ -114,9 +115,6 @@ int main()
 			token_count++;
 		}
 
-		// Now print the tokenized input as a debug check
-		// TODO Remove this code and replace with your shell functionality
-
 		if(!strcmp(token[0], "exit") || !strcmp(token[0], "quit")){
 			free(working_root);             //Checking for exit condition, freeing used data, and exiting
 			if(state)
@@ -156,7 +154,6 @@ int main()
 					// Fill directory array
 					int root_offset = (FAT->BPB_NumFATS * FAT->BPB_FATSz32 * FAT->BPB_BytesPerSec) + (FAT->BPB_RsvdSecCnt * FAT->BPB_BytesPerSec);
 
-//					printf("%d %x", root_offset, root_offset);
 					fseek( img, root_offset, SEEK_SET );
 
 					for(i=0; i<16; i++)
@@ -186,44 +183,45 @@ int main()
 			printf("BPB_FATSz32     = %d\n", FAT->BPB_FATSz32);
 			printf("BPB_FATSz32     = %x\n\n", FAT->BPB_FATSz32);
 		}else if(!strcmp(token[0],"stat")){
-			bool found = false;
-			char name[12], in_name[12];
-			memset(name,32,11);
-			name[11] = 0, in_name[11] = 0;
-			char *in = (char*)strtok(token[1],".");
-
-			strncpy(name,in,strlen(in));
-			in = strtok(NULL, ".");
-			if(in != NULL)
-				strcpy(&name[8],in);
-			for(i = 0; i < 16; i++){
-				memset(in_name,32,11);
-				strncpy(in_name,dir[i].DIR_Name,11);
-				if(!strncasecmp(name,in_name,11)){
-					found = true;
-					break;
-				}
-			}
-			if(!found)
+			int index = search(token[1]);
+			if(index < 0)
 				fprintf(stderr,"Error: File not found\n");
 			else
-				printf("File Size: %d\nStarting Cluster Number: %d\n\n", dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
+				printf("File Size: %d\nStarting Cluster Number: %d\n\n", dir[index].DIR_FileSize, dir[index].DIR_FirstClusterLow);
 		}else if(!strcmp(token[0],"get")){
 			//something
 		}else if(!strcmp(token[0],"cd")){
 			//something
 		}else if(!strcmp(token[0],"ls")){
-			for(i=0; i<16; i++){
-				if( dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20 ){
-					char name[12];
-					memset(name, 0, 12);
-					strncpy(name, dir[i].DIR_Name, 11);
-					printf("%s\t%d\t%d\n", name, dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
+			if(token[1] == NULL)
+				for(i=0; i<16; i++){
+					if(( dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20) && (dir[i].DIR_Name[0] != 0xffffffe5)){
+						char name[12];
+						memset(name, 0, 12);
+						strncpy(name, dir[i].DIR_Name, 11);
+						printf("%s\t%d\t%d\n", name, dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
+					}
 				}
-			} 
+			else{
+				
+			}
 		}else if(!strcmp(token[0],"read")){
 			// Move to position token[1] and begin reading
-			char* buffer;
+			if(token_count == 5){
+				int index    = search(token[1]);
+				int root_offset = LBAToOffset(dir[index].DIR_FirstClusterLow);
+				int position = atoi(token[2]) + root_offset;
+				int length   = atoi(token[3]);
+//				char *buffer = (char*)malloc((length * 2) * sizeof(char));
+				char buffer[100000];
+				memset(buffer, 0, length + 2);
+
+				fseek(img, position, SEEK_SET);
+				fread(&buffer, length, 1, img);
+				printf("read\n");
+				printf("%s\n",buffer);
+			}else
+				fprintf(stderr,"Error: Invalid argument count\n");
 		}else if(!strcmp(token[0],"volume")){
 			// Print FAT->name
 			if(!strcasecmp(FAT->name, "NO NAME    "))
@@ -242,10 +240,30 @@ int LBAToOffset(int32_t sector){
         return ((sector-2) * FAT->BPB_BytesPerSec) + (FAT->BPB_BytesPerSec * FAT->BPB_RsvdSecCnt) + (FAT->BPB_NumFATS * FAT->BPB_FATSz32 * FAT->BPB_BytesPerSec);
 }
 
-int16_t NextLB( uint32_t sector ){
+int16_t NextLB(uint32_t sector){
         uint32_t FATAddress = (FAT->BPB_BytesPerSec * FAT->BPB_RsvdSecCnt) + (sector * 4);
         int16_t val;
         fseek(img, FATAddress, SEEK_SET);
         fread(&val, 2, 1, img);
         return val;
+}
+
+int search(char *search){
+	int i;
+	char name[11], in_name[11];
+	memset(name,32,11);
+	name[11] = 0, in_name[11] = 0;
+	char *in = (char*)strtok(search,".");
+
+	strncpy(name,in,strlen(in));
+	in = strtok(NULL, ".");
+	if(in != NULL)
+		strcpy(&name[8],in);
+	for(i = 0; i < 16; i++){
+		memset(in_name,32,10);
+		strncpy(in_name,dir[i].DIR_Name,11);
+		if(!strncasecmp(name,in_name,11))
+			return i;
+	}
+	return -1;
 }
