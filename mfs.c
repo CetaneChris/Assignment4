@@ -192,17 +192,26 @@ int main()
 		}else if(!strcmp(token[0],"stat")){
 			int  i;
 			bool found = false;
-			char name[11];
+			char name[12], in_name[12];
+			memset(name,32,11);
+			name[11] = 0, in_name[11] = 0;
 
+			printf("token[1] = %s\n",token[1]);
 			char *in = (char*)strtok(token[1],".");
-			strncpy(&name[0],&in[0],8);
-			strncpy(&name[8],&in[1],3);
+
+			strncpy(name,in,8);
+			in = strtok(NULL, ".");
+			name[9] = 0;
+			strcat(name + 9,in);
+			printf("name = %s\n",name);
 			for(i = 0; i < 16; i++){
-				if(!strcasecmp(name,dir[i].DIR_Name)){
+				memset(in_name,32,11);
+				strncpy(in_name,dir[i].DIR_Name,11);
+				if(!strcasecmp(name,in_name)){
 					printf("Success!\n");
 					found = true;
 				}else
-					printf("dir[%d].DIR_Name = %s\n",i,name);
+					printf("dir[%d] in_name = %s\n",i,in_name);
 			}
 			if(!found)
 				fprintf(stderr,"Error: File not found\n");
