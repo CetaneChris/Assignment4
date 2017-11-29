@@ -195,19 +195,17 @@ int main()
 			char name[12], in_name[12];
 			memset(name,32,11);
 			name[11] = 0, in_name[11] = 0;
-
-			printf("token[1] = %s\n",token[1]);
 			char *in = (char*)strtok(token[1],".");
 
-			strncpy(name,in,8);
+			strncpy(name,in,strlen(in));
 			in = strtok(NULL, ".");
-			name[9] = 0;
-			strcat(name + 9,in);
+			printf("in = %s\n",in);
+			strcpy(&name[8],in);
 			printf("name = %s\n",name);
 			for(i = 0; i < 16; i++){
 				memset(in_name,32,11);
 				strncpy(in_name,dir[i].DIR_Name,11);
-				if(!strcasecmp(name,in_name)){
+				if(!strncasecmp(name,in_name,11)){
 					printf("Success!\n");
 					found = true;
 				}else
