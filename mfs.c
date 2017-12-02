@@ -194,14 +194,9 @@ int main()
 			//something
 		}else if(!strcmp(token[0],"ls")){
 			if(token[1] == NULL)
-				for(i=0; i<16; i++){
-					if(( dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20) && (dir[i].DIR_Name[0] != 0xffffffe5)){
-						char name[12];
-						memset(name, 0, 12);
-						strncpy(name, dir[i].DIR_Name, 11);
-						printf("%s\t%d\t%d\n", name, dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
-					}
-				}
+				for(i=0; i<16; i++)
+					if(( dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20) && (dir[i].DIR_Name[0] != 0xffffffe5))
+						printf("%.11s\t%d\t%d\n", dir[i].DIR_Name, dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
 			else{
 				
 			}
