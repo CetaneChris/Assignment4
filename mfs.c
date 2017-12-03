@@ -130,7 +130,7 @@ int main()
 			if(state)		// If a file is already open
 				fprintf(stderr,"Error: File system image already open\n");
 			else if(token[1] != NULL){	// Ensuring a file was selected
-				img   = fopen(token[1], "r");	// Open file in read only mode
+				img   = fopen(token[1], "r+");	// Open file in read only mode
 				if(img == NULL)		// If file not found, print error
 					fprintf(stderr,"Error: File system image not found\n");
 				else{
@@ -192,11 +192,31 @@ int main()
 				printf("File Size: %d\nStarting Cluster Number: %d\n\n", dir[index].DIR_FileSize, dir[index].DIR_FirstClusterLow);
 		}else if(!strcmp(token[0],"get")){
 			//something
-/*			int index       = search(token[1]);
+		        FILE * img1;
+                        i = 10;
+                       // img1 = fopen(token[1], "w");
+                 	int index       = search(token[1]);
 			int size        = dir[index].DIR_FileSize;
-			int cluster     = dir[index].DIR_FileSize;
-			int root_offset = LBAToOffset(dir[index].DIR_FirstClusterLow);
-			char *fname = (char*)strtok(token[1], "/");
+			int cluster     = dir[index].DIR_FirstClusterLow;
+			int root_offset = LBAToOffset(cluster);
+                        char buffer[100000];
+                        memset(buffer, 0, size + 2);
+                        fseek(img, root_offset, SEEK_SET);
+                        fread(&buffer, size, 1, img);
+                        int file_offset = LBAToOffset(6099);
+                        fseek(img, file_offset, SEEK_SET);
+ 			fwrite(buffer, size, 1 , img);
+                        if(img1==NULL)
+                        {
+                         printf("error");
+                        }
+                        else
+                        {
+                         printf("suceed");
+                        }
+                       // fclose(img1);
+  	         //	dir[10] = &img1;
+		/*	char *fname = (char*)strtok(token[1], "/");
 			fname = strtok(NULL,"/");
 
 			if(fname == NULL)
@@ -212,6 +232,7 @@ int main()
 			}
 			fwrite(img, LBAToOffset(cluster), SEEK_SET);
 			fread(fname, size, 1, img);*/
+
 		}else if(!strcmp(token[0],"cd")){
 			int index, root_offset;
 			if(token[1] != NULL){
@@ -338,6 +359,7 @@ int main()
 			else
 				printf("Volume Name: %s\n", FAT->name);
 		}
+                else{ printf("Command not found\n"); }
 
 		free(working_root);
 
