@@ -130,7 +130,7 @@ int main()
 			if(state)		// If a file is already open
 				fprintf(stderr,"Error: File system image already open\n");
 			else if(token[1] != NULL){	// Ensuring a file was selected
-				img   = fopen(token[1], "r+");	// Open file in read only mode
+				img   = fopen(token[1], "r");	// Open file in read only mode
 				if(img == NULL)		// If file not found, print error
 					fprintf(stderr,"Error: File system image not found\n");
 				else{
@@ -192,31 +192,11 @@ int main()
 				printf("File Attribute: 0x%x\nFile Size: %d\nStarting Cluster Number: %d\n\n", dir[index].DIR_Attr,  dir[index].DIR_FileSize, dir[index].DIR_FirstClusterLow);
 		}else if(!strcmp(token[0],"get")){
 			//something
-		        FILE * img1;
-                        i = 10;
-                       // img1 = fopen(token[1], "w");
-                 	int index       = search(token[1]);
+/*			int index       = search(token[1]);
 			int size        = dir[index].DIR_FileSize;
-			int cluster     = dir[index].DIR_FirstClusterLow;
-			int root_offset = LBAToOffset(cluster);
-                        char buffer[100000];
-                        memset(buffer, 0, size + 2);
-                        fseek(img, root_offset, SEEK_SET);
-                        fread(&buffer, size, 1, img);
-                        int file_offset = LBAToOffset(6099);
-                        fseek(img, file_offset, SEEK_SET);
- 			fwrite(buffer, size, 1 , img);
-                        if(img1==NULL)
-                        {
-                         printf("error");
-                        }
-                        else
-                        {
-                         printf("suceed");
-                        }
-                       // fclose(img1);
-  	         //	dir[10] = &img1;
-		/*	char *fname = (char*)strtok(token[1], "/");
+			int cluster     = dir[index].DIR_FileSize;
+			int root_offset = LBAToOffset(dir[index].DIR_FirstClusterLow);
+			char *fname = (char*)strtok(token[1], "/");
 			fname = strtok(NULL,"/");
 
 			if(fname == NULL)
@@ -232,61 +212,32 @@ int main()
 			}
 			fwrite(img, LBAToOffset(cluster), SEEK_SET);
 			fread(fname, size, 1, img);*/
-
 		}else if(!strcmp(token[0],"cd")){
 			int index, root_offset;
+			bool found = true;
+			printf("token[1] = %s\n",token[1]);
 			if(token[1] != NULL){
 				char *tok = (char*)strtok(token[1],"/");
 				while(tok != NULL){
-					if(strcmp(tok,"..")==0){
+					printf("tok = %s\n",tok);
+					if(!strcmp(tok,"..")){
 						if(dir[1].DIR_Attr == 0x10 && dir[1].DIR_FirstClusterLow != 0)
 							root_offset = LBAToOffset(dir[1].DIR_FirstClusterLow);
 						else
 							root_offset = (FAT->BPB_NumFATS * FAT->BPB_FATSz32 * FAT->BPB_BytesPerSec) + (FAT->BPB_RsvdSecCnt * FAT->BPB_BytesPerSec);
-					}else if(!strcmp(tok,"."))
+					}else if(!strcmp(tok,".")){
+						tok = strtok(NULL,"/");
 						continue;
-					else{
-						index = search(tok);
-						if(index > 0)
-							root_offset = LBAToOffset(dir[index].DIR_FirstClusterLow);
-						else
-							fprintf(stderr,"Error: Folder not found!\n");
-					}
-					fseek (img, root_offset, SEEK_SET);
-					for(i=0; i < 16; i++){
-						memset(&dir[i].DIR_Name,0,32);
-						fread(&dir[i],32,1,img);
-					}
-					tok = strtok(NULL,"/");
-				};
-			}else
-				fprintf(stderr,"Invalid entry\n"); 
-		}else if(!strcmp(token[0],"ls")){
-			struct DirectoryEntry temp;
-			int root_offset,index;
-			bool found = true;
-			if(token[1] == NULL || !strcmp(token[1],".")){
-				for(i=0; i<16; i++)
-					if((dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20 || dir[i].DIR_Attr == 0x30 || dir[i].DIR_Attr == 0x01) && (dir[i].DIR_Name[0] != 0xffffffe5))
-						printf("%.11s\t0x%x\t%d\t%d\n", dir[i].DIR_Name, dir[i].DIR_Attr, dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
-			}else{
-				char *tok = (char*)strtok(token[1],"/");
-				while(tok != NULL){
-					if(strcmp(tok,".")==0);
-					else if(strcmp(tok,"..")==0){
-						if(dir[1].DIR_Attr == 0x10 && dir[1].DIR_FirstClusterLow != 0)
-							root_offset = LBAToOffset(dir[1].DIR_FirstClusterLow);
-						else
-							root_offset = (FAT->BPB_NumFATS * FAT->BPB_FATSz32 * FAT->BPB_BytesPerSec) + (FAT->BPB_RsvdSecCnt * FAT->BPB_BytesPerSec);
 					}else{
 						index = search(tok);
-						if(index > 0)
+						if(index >= 0)
 							root_offset = LBAToOffset(dir[index].DIR_FirstClusterLow);
 						else{
-							fprintf(stderr,"Error: Folder not found!\n");
+							fprintf(stderr,"Error: Folder %s not found!\n",tok);
 							found = false;
 						}
 					}
+<<<<<<< HEAD
 					tok = strtok(NULL,"/");
                                 };
 				if(found){
@@ -299,6 +250,25 @@ int main()
 				}
 			}
 		}else if(!strcmp(token[0],"read")){ 
+=======
+					if(found){
+						tok = strtok(NULL,"/");
+						fseek(img, root_offset, SEEK_SET);
+						for(i=0; i < 16; i++)
+							fread(&dir[i],32,1,img);
+
+						printf("tok2 = %s\n\n",tok);
+					}else
+						break;
+				};
+			}else
+				fprintf(stderr,"Invalid entry\n"); 
+		}else if(!strcmp(token[0],"ls")){
+			for(i=0; i<16; i++)
+				if((dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20 || dir[i].DIR_Attr == 0x30 || dir[i].DIR_Attr == 0x01) && (dir[i].DIR_Name[0] != 0xffffffe5))
+					printf("%.11s\t0x%x\t%d\t%d\n", dir[i].DIR_Name, dir[i].DIR_Attr, dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
+		}else if(!strcmp(token[0],"read")){
+>>>>>>> 1334b79c09318908513cdff10903cf765e489014
 			// Move to position token[1] and begin reading
 			if(token_count == 5 && token[2] >= 0 && token[3] >= 0){
 				int index    = search(token[1]);
@@ -346,8 +316,8 @@ int main()
 				fprintf(stderr,"Error: volume name not found");
 			else
 				printf("Volume Name: %s\n", FAT->name);
-		}
-                else{ printf("Command not found\n"); }
+		}else
+			fprintf(stderr,"Error: command %s not found\n",token[0]);
 
 		free(working_root);
 
