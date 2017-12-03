@@ -203,18 +203,23 @@ int main()
 				fprintf(stderr,"Invalid entry\n"); 
 		}else if(!strcmp(token[0],"ls")){
 			if(token[1] == NULL)
+<<<<<<< HEAD
 				for(i=0; i<16; i++){
 					if(( dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20) && (dir[i].DIR_Name[0] != 0xffffffe5)){
 						printf("%0.11s\t%d\t%d\n", dir[i].DIR_Name, dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
 						printf("dir[%d].DIR_Attr=%x\ndir[%d].DIR_FirstClusterHigh = %d\ndir[%d].DIR_FirstClusterLow = %d\n\n",i,dir[i].DIR_Attr,i,dir[i].DIR_FirstClusterHigh,i,dir[i].DIR_FirstClusterLow);
 					}
 				}
+=======
+				for(i=0; i<16; i++)
+					if(( dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20) && (dir[i].DIR_Name[0] != 0xffffffe5))
+						printf("%.11s\t%d\t%d\n", dir[i].DIR_Name, dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
+>>>>>>> 43e1cd977996af22ccd6b8c42fd7a43f478de6ae
 			else{
 				
 			}
 		}else if(!strcmp(token[0],"read")){
 			// Move to position token[1] and begin reading
-			if(token_count == 5){
 			if(token_count == 5 && token[2] >= 0 && token[3] >= 0){
 				int index    = search(token[1]);
 				int root_offset = LBAToOffset(dir[index].DIR_FirstClusterLow);
@@ -258,8 +263,18 @@ int main()
                                          }
                                         printf("\n");
                                      }      
+=======
+				int length   = atoi(token[3]);
+				int position = atoi(token[2]) + root_offset;
+				char *buffer = (char*)malloc((length + 1) * sizeof(char));
+				memset(buffer, 0, length + 1);
+
+				fseek(img, position, SEEK_SET);
+				fread(buffer, length, 1, img);
+				printf("%s\n",buffer);
+>>>>>>> 43e1cd977996af22ccd6b8c42fd7a43f478de6ae
 			}else
-				fprintf(stderr,"Error: Invalid argument count\n");
+				fprintf(stderr,"Error: Invalid arguments\n");
 //			printf("next_lb(2) = %X\n",NextLB(2));
 		}else if(!strcmp(token[0],"volume")){
 			// Print FAT->name
@@ -289,7 +304,7 @@ int16_t NextLB(uint32_t sector){
 
 int search(char *search){
 	int i;
-	char name[11], in_name[11];
+	char name[12], in_name[12];
 	memset(name,32,11);
 	name[11] = 0, in_name[11] = 0;
 	char *in = (char*)strtok(search,".");
@@ -301,6 +316,7 @@ int search(char *search){
 	for(i = 0; i < 16; i++){
 		memset(in_name,32,10);
 		strncpy(in_name,dir[i].DIR_Name,11);
+
 		if(!strncasecmp(name,in_name,11))
 			return i;
 	}
