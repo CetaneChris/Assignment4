@@ -189,7 +189,7 @@ int main()
 			if(index < 0)
 				fprintf(stderr,"Error: File not found\n");
 			else
-				printf("File Size: %d\nStarting Cluster Number: %d\n\n", dir[index].DIR_FileSize, dir[index].DIR_FirstClusterLow);
+				printf("File Attribute: 0x%x\nFile Size: %d\nStarting Cluster Number: %d\n\n", dir[index].DIR_Attr,  dir[index].DIR_FileSize, dir[index].DIR_FirstClusterLow);
 		}else if(!strcmp(token[0],"get")){
 			//something
 		        FILE * img1;
@@ -298,58 +298,46 @@ int main()
 					}
 				}
 			}
-		}else if(!strcmp(token[0],"read")){
+		}else if(!strcmp(token[0],"read")){ 
 			// Move to position token[1] and begin reading
 			if(token_count == 5 && token[2] >= 0 && token[3] >= 0){
 				int index    = search(token[1]);
 				int root_offset = LBAToOffset(dir[index].DIR_FirstClusterLow);
                                 int user_offset = atoi(token[2]);
-                                printf("root- %d\n", root_offset);
+				uint8_t value;
                                 if( user_offset < FAT->BPB_BytesPerSec)
                                      {
 			     		int position = atoi(token[2]) + root_offset;
 					int length   = atoi(token[3]);
-//					char *buffer = (char*)malloc((length * 2) * sizeof(char));
-					char buffer[100000];
-					memset(buffer, 0, length + 2);		
                  			fseek(img, position, SEEK_SET);
-					fread(&buffer, length, 1, img);
 					printf("read\n");
-			       	        printf("%s\n ",buffer);
+					for( i=1; i<=length; i++)
+                                         {
+                                          fread(&value, 1, 1, img);
+                                          printf("%d ",value);
+                                         }
+                                        printf("\n");
+
                                      }
                                 else
                                      {
                                         int  block = dir[index].DIR_FirstClusterLow;
-                                        printf("block- %d\n", block);
                                         while( user_offset > FAT->BPB_BytesPerSec )
                                           {
                                             block = NextLB(block);
                                             user_offset -= FAT->BPB_BytesPerSec;
                                           }
-       					printf("block1- %d\n", block);
-                                        printf("position- %d\n",user_offset);
                                         int file_offset = LBAToOffset(block);
                                         int length   = atoi(token[3]);
-                 			char buffer[100000];
-                                        memset(buffer, 0, length + 2);
                                         fseek( img, file_offset + user_offset, SEEK_SET);
-                                        fread(&buffer, 1 ,1, img);
                                         printf("read\n");
-                                        for( i=1; i<length; i++)
+					for( i=1; i<=length; i++)
                                          {
-                                          fread(&buffer, 1, 1, img);
-                                          printf("%x ",buffer);
+                                          fread(&value, 1, 1, img);
+                                          printf("%d ",value);
                                          }
                                         printf("\n");
-                                     }      
-				int length   = atoi(token[3]);
-				int position = atoi(token[2]) + root_offset;
-				char *buffer = (char*)malloc((length + 1) * sizeof(char));
-				memset(buffer, 0, length + 1);
-
-				fseek(img, position, SEEK_SET);
-				fread(buffer, length, 1, img);
-				printf("%s\n",buffer);
+                                       }      
 			}else
 				fprintf(stderr,"Error: Invalid arguments\n");
 		}else if(!strcmp(token[0],"volume")){
