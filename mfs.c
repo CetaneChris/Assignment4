@@ -248,7 +248,7 @@ int main()
 		}else if(!strcmp(token[0],"ls")){
 			if(token[1] == NULL)
 				for(i=0; i<16; i++)
-					if(( dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20) && (dir[i].DIR_Name[0] != 0xffffffe5))
+					if(( dir[i].DIR_Attr == 0x01 || dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20) || dir[i].DIR_Attr == 0x30 && (dir[i].DIR_Name[0] != 0xffffffe5))
 						printf("%.11s\t0x%x\t%d\t%d\n", dir[i].DIR_Name, dir[i].DIR_Attr, dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
 			else{
 				
