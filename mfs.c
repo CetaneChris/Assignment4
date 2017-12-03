@@ -1,3 +1,26 @@
+// The MIT License (MIT)
+// 
+// Copyright (c) 2016, 2017 Trevor Bakker 
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
+#define _GNU_SOURCE
 
 #include <stdio.h>
 #include <unistd.h>
@@ -140,7 +163,7 @@ int main()
 		}else if(!strcmp(token[0],"close")){
 			if(state){	// If file open, then close it
 				state = false;		// Set program state to closed
-				been_closed = false;	// Program knows that 'close' has been ran
+				been_closed = true;	// Program knows that 'close' has been ran
 				fclose(img);		// Close the file
 			}else		// Else, print error
 				fprintf(stderr,"Error: File system not open\n");
@@ -167,6 +190,27 @@ int main()
 				printf("File Size: %d\nStarting Cluster Number: %d\n\n", dir[index].DIR_FileSize, dir[index].DIR_FirstClusterLow);
 		}else if(!strcmp(token[0],"get")){
 			//something
+			int index       = search(token[1]);
+			int size        = dir[index].DIR_FileSize;
+			int cluster     = dir[index].DIR_FileSize;
+			int root_offset = LBAToOffset(dir[index].DIR_FirstClusterLow);
+			char *fname = (char*)strtok(token[1], "/");
+			fname = strtok(NULL,"/");
+
+			if(name == NULL)
+				fprintf(stderr, "Error: File already in current directory\n");
+			else
+				fopen(fname, 'w');
+
+			while(size > 512){
+				fseek(img, LBAToOffset(cluster), SEEK_SET);
+				fwrite(fname, FAT->BPB_BytesPerSec, 1, img);
+				size   -= FAT->BPB_BytesPerSec;
+				cluster = NextLB(cluster);
+			}
+			fwrite(img, LBAToOffset(cluster), SEEK_SET);
+			fread(fname, size, 1, img);
+
 		}else if(!strcmp(token[0],"cd")){
 			//something
 			if(token[1] != NULL){
@@ -203,18 +247,9 @@ int main()
 				fprintf(stderr,"Invalid entry\n"); 
 		}else if(!strcmp(token[0],"ls")){
 			if(token[1] == NULL)
-<<<<<<< HEAD
-				for(i=0; i<16; i++){
-					if(( dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20) && (dir[i].DIR_Name[0] != 0xffffffe5)){
-						printf("%0.11s\t%d\t%d\n", dir[i].DIR_Name, dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
-						printf("dir[%d].DIR_Attr=%x\ndir[%d].DIR_FirstClusterHigh = %d\ndir[%d].DIR_FirstClusterLow = %d\n\n",i,dir[i].DIR_Attr,i,dir[i].DIR_FirstClusterHigh,i,dir[i].DIR_FirstClusterLow);
-					}
-				}
-=======
 				for(i=0; i<16; i++)
 					if(( dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20) && (dir[i].DIR_Name[0] != 0xffffffe5))
-						printf("%.11s\t%d\t%d\n", dir[i].DIR_Name, dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
->>>>>>> 43e1cd977996af22ccd6b8c42fd7a43f478de6ae
+						printf("%.11s\t0x%x\t%d\t%d\n", dir[i].DIR_Name, dir[i].DIR_Attr, dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
 			else{
 				
 			}
@@ -275,7 +310,6 @@ int main()
 >>>>>>> 43e1cd977996af22ccd6b8c42fd7a43f478de6ae
 			}else
 				fprintf(stderr,"Error: Invalid arguments\n");
-//			printf("next_lb(2) = %X\n",NextLB(2));
 		}else if(!strcmp(token[0],"volume")){
 			// Print FAT->name
 			if(!strcasecmp(FAT->name, "NO NAME    "))
@@ -322,4 +356,3 @@ int search(char *search){
 	}
 	return -1;
 }
- 
