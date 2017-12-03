@@ -215,8 +215,10 @@ int main()
 		}else if(!strcmp(token[0],"read")){
 			// Move to position token[1] and begin reading
 			if(token_count == 5){
+			if(token_count == 5 && token[2] >= 0 && token[3] >= 0){
 				int index    = search(token[1]);
 				int root_offset = LBAToOffset(dir[index].DIR_FirstClusterLow);
+<<<<<<< HEAD
                                 int user_offset = atoi(token[2]);
                                 printf("root- %d\n", root_offset);
                                 if( user_offset < FAT->BPB_BytesPerSec)
@@ -258,6 +260,7 @@ int main()
                                      }      
 			}else
 				fprintf(stderr,"Error: Invalid argument count\n");
+//			printf("next_lb(2) = %X\n",NextLB(2));
 		}else if(!strcmp(token[0],"volume")){
 			// Print FAT->name
 			if(!strcasecmp(FAT->name, "NO NAME    "))
