@@ -241,12 +241,41 @@ int main()
 			}else
 				fprintf(stderr,"Invalid entry\n"); 
 		}else if(!strcmp(token[0],"ls")){
-			if(token[1] == NULL)
+			struct DirectoryEntry temp;
+			int root_offset,index;
+			bool found = true;
+			if(token[1] == NULL || !strcmp(token[1],".")){
 				for(i=0; i<16; i++)
-					if(( dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20 || dir[i].DIR_Attr == 0x30 || dir[i].DIR_Attr == 0x01) && (dir[i].DIR_Name[0] != 0xffffffe5))
+					if((dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20 || dir[i].DIR_Attr == 0x30 || dir[i].DIR_Attr == 0x01) && (dir[i].DIR_Name[0] != 0xffffffe5))
 						printf("%.11s\t0x%x\t%d\t%d\n", dir[i].DIR_Name, dir[i].DIR_Attr, dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
-			else{
-				
+			}else{
+				char *tok = (char*)strtok(token[1],"/");
+				while(tok != NULL){
+					if(strcmp(tok,".")==0);
+					else if(strcmp(tok,"..")==0){
+						if(dir[1].DIR_Attr == 0x10 && dir[1].DIR_FirstClusterLow != 0)
+							root_offset = LBAToOffset(dir[1].DIR_FirstClusterLow);
+						else
+							root_offset = (FAT->BPB_NumFATS * FAT->BPB_FATSz32 * FAT->BPB_BytesPerSec) + (FAT->BPB_RsvdSecCnt * FAT->BPB_BytesPerSec);
+					}else{
+						index = search(tok);
+						if(index > 0)
+							root_offset = LBAToOffset(dir[index].DIR_FirstClusterLow);
+						else{
+							fprintf(stderr,"Error: Folder not found!\n");
+							found = false;
+						}
+					}
+					tok = strtok(NULL,"/");
+                                };
+				if(found){
+					fseek(img, root_offset, SEEK_SET);
+					for(i = 0; i < 16; i++){
+						fread(&temp, 32, 1, img);
+						if((temp.DIR_Attr==0x10 || temp.DIR_Attr == 0x20 || temp.DIR_Attr == 0x30 || temp.DIR_Attr == 0x01) && (temp.DIR_Name[0] != 0xffffffe5))
+							printf("%.11s\t0x%x\t%d\t%d\n", temp.DIR_Name, temp.DIR_Attr, temp.DIR_FileSize, temp.DIR_FirstClusterLow);
+					}
+				}
 			}
 		}else if(!strcmp(token[0],"read")){
 			// Move to position token[1] and begin reading
