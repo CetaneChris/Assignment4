@@ -1,26 +1,3 @@
-// The MIT License (MIT)
-// 
-// Copyright (c) 2016, 2017 Trevor Bakker 
-// 
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-// 
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
-
-#define _GNU_SOURCE
 
 #include <stdio.h>
 #include <unistd.h>
@@ -192,14 +169,44 @@ int main()
 			//something
 		}else if(!strcmp(token[0],"cd")){
 			//something
+			if(token[1] != NULL){
+	                       if(strcmp(token[1],"..")==0)
+	                        {
+				int root_offset;
+				if(dir[1].DIR_Attr == 0x10 && dir[1].DIR_FirstClusterLow != 0)
+					root_offset = LBAToOffset(dir[1].DIR_FirstClusterLow);
+				else
+					root_offset = (FAT->BPB_NumFATS * FAT->BPB_FATSz32 * FAT->BPB_BytesPerSec) + (FAT->BPB_RsvdSecCnt * FAT->BPB_BytesPerSec);
+	                         fseek (img, root_offset, SEEK_SET);
+	                         for(i=0; i < 16; i++)
+	                          {
+	                           memset(&dir[i].DIR_Name,0,32);
+	                           fread(&dir[i],32,1,img);
+	                          }
+	 
+	                        }else if(!strcmp(token[1],"."))
+					continue;
+	                        else 
+	                        {
+				printf("else\n");
+	                        int index = search(token[1]);
+				printf("index= %d\n", index);
+	                        int root_offset = LBAToOffset(dir[index].DIR_FirstClusterLow);
+	                        fseek (img, root_offset, SEEK_SET);
+	                        for(i=0; i < 16; i++)
+	                          {
+	                           memset(&dir[i].DIR_Name,0,32);
+	                           fread(&dir[i],32,1,img);
+	                          }    
+	                       }
+			}else
+				fprintf(stderr,"Invalid entry\n"); 
 		}else if(!strcmp(token[0],"ls")){
 			if(token[1] == NULL)
 				for(i=0; i<16; i++){
 					if(( dir[i].DIR_Attr == 0x10 || dir[i].DIR_Attr == 0x20) && (dir[i].DIR_Name[0] != 0xffffffe5)){
-						char name[12];
-						memset(name, 0, 12);
-						strncpy(name, dir[i].DIR_Name, 11);
-						printf("%s\t%d\t%d\n", name, dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
+						printf("%0.11s\t%d\t%d\n", dir[i].DIR_Name, dir[i].DIR_FileSize, dir[i].DIR_FirstClusterLow);
+						printf("dir[%d].DIR_Attr=%x\ndir[%d].DIR_FirstClusterHigh = %d\ndir[%d].DIR_FirstClusterLow = %d\n\n",i,dir[i].DIR_Attr,i,dir[i].DIR_FirstClusterHigh,i,dir[i].DIR_FirstClusterLow);
 					}
 				}
 			else{
@@ -210,16 +217,45 @@ int main()
 			if(token_count == 5){
 				int index    = search(token[1]);
 				int root_offset = LBAToOffset(dir[index].DIR_FirstClusterLow);
-				int position = atoi(token[2]) + root_offset;
-				int length   = atoi(token[3]);
-//				char *buffer = (char*)malloc((length * 2) * sizeof(char));
-				char buffer[100000];
-				memset(buffer, 0, length + 2);
-
-				fseek(img, position, SEEK_SET);
-				fread(&buffer, length, 1, img);
-				printf("read\n");
-				printf("%s\n",buffer);
+                                int user_offset = atoi(token[2]);
+                                printf("root- %d\n", root_offset);
+                                if( user_offset < FAT->BPB_BytesPerSec)
+                                     {
+			     		int position = atoi(token[2]) + root_offset;
+					int length   = atoi(token[3]);
+//					char *buffer = (char*)malloc((length * 2) * sizeof(char));
+					char buffer[100000];
+					memset(buffer, 0, length + 2);		
+                 			fseek(img, position, SEEK_SET);
+					fread(&buffer, length, 1, img);
+					printf("read\n");
+			       	        printf("%s\n ",buffer);
+                                     }
+                                else
+                                     {
+                                        int  block = dir[index].DIR_FirstClusterLow;
+                                        printf("block- %d\n", block);
+                                        while( user_offset > FAT->BPB_BytesPerSec )
+                                          {
+                                            block = NextLB(block);
+                                            user_offset -= FAT->BPB_BytesPerSec;
+                                          }
+       					printf("block1- %d\n", block);
+                                        printf("position- %d\n",user_offset);
+                                        int file_offset = LBAToOffset(block);
+                                        int length   = atoi(token[3]);
+                 			char buffer[100000];
+                                        memset(buffer, 0, length + 2);
+                                        fseek( img, file_offset + user_offset, SEEK_SET);
+                                        fread(&buffer, 1 ,1, img);
+                                        printf("read\n");
+                                        for( i=1; i<length; i++)
+                                         {
+                                          fread(&buffer, 1, 1, img);
+                                          printf("%x ",buffer);
+                                         }
+                                        printf("\n");
+                                     }      
 			}else
 				fprintf(stderr,"Error: Invalid argument count\n");
 		}else if(!strcmp(token[0],"volume")){
@@ -267,3 +303,4 @@ int search(char *search){
 	}
 	return -1;
 }
+ 
