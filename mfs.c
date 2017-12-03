@@ -217,7 +217,6 @@ int main()
 			if(token[1] != NULL){
 				char *tok = (char*)strtok(token[1],"/");
 				while(tok != NULL){
-					printf("tok = %s\n",tok);
 					if(strcmp(tok,"..")==0){
 						if(dir[1].DIR_Attr == 0x10 && dir[1].DIR_FirstClusterLow != 0)
 							root_offset = LBAToOffset(dir[1].DIR_FirstClusterLow);
@@ -227,13 +226,11 @@ int main()
 						continue;
 					else{
 						index = search(tok);
-						printf("index = %d\n",index);
 						if(index > 0)
 							root_offset = LBAToOffset(dir[index].DIR_FirstClusterLow);
 						else
 							fprintf(stderr,"Error: Folder not found!\n");
 					}
-					printf("root_offset = %d\n",root_offset);
 					fseek (img, root_offset, SEEK_SET);
 					for(i=0; i < 16; i++){
 						memset(&dir[i].DIR_Name,0,32);
