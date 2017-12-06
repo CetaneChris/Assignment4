@@ -254,32 +254,32 @@ int main()
 		}else if(!strcmp(token[0],"read")){ 
 			// Move to position token[1] and begin reading
 			if(token_count == 5 && token[2] >= 0 && token[3] >= 0){
-				int index    = search(token[1]);
-				int root_offset = LBAToOffset(dir[index].DIR_FirstClusterLow);
-				int user_offset = atoi(token[2]);
+				int index    = search(token[1]);                                  //error handling
+				int root_offset = LBAToOffset(dir[index].DIR_FirstClusterLow);    //starting cluster for the file
+				int user_offset = atoi(token[2]);                                 //offset value passed by user
 				uint8_t value;
-				if( user_offset < FAT->BPB_BytesPerSec){
-					int position = atoi(token[2]) + root_offset;
-					int length   = atoi(token[3]);
-					fseek(img, position, SEEK_SET);
+				if( user_offset < FAT->BPB_BytesPerSec){                          //defining case according to block size
+					int position = atoi(token[2]) + root_offset;              //starting position for the offset
+					int length   = atoi(token[3]);                            //number of bytes requested by user
+					fseek(img, position, SEEK_SET);                           //move to the new cluster
 					printf("read\n");
 					for( i=1; i<=length; i++){
-						fread(&value, 1, 1, img);
+						fread(&value, 1, 1, img);                         //loads value 
 						printf("%d ",value);
 					}
 					printf("\n");
 				}else{
-					int block = dir[index].DIR_FirstClusterLow;
+					int block = dir[index].DIR_FirstClusterLow;          
 					while( user_offset > FAT->BPB_BytesPerSec ){
-						block = NextLB(block);
-						user_offset -= FAT->BPB_BytesPerSec;
+						block = NextLB(block);                           //moving to the next block
+						user_offset -= FAT->BPB_BytesPerSec;             //moving inside the block to reach the exact offset
 					}
-					int file_offset = LBAToOffset(block);
-					int length   = atoi(token[3]);
-					fseek( img, file_offset + user_offset, SEEK_SET);
+					int file_offset = LBAToOffset(block);                    //new offset
+					int length   = atoi(token[3]);                           //number of bytes to read
+					fseek( img, file_offset + user_offset, SEEK_SET);        //moving to the new offset
 					printf("read\n");
 					for( i=1; i<=length; i++){
-						fread(&value, 1, 1, img);
+						fread(&value, 1, 1, img);                        //loads value
 						printf("%d ",value);
 					}
 					printf("\n");
