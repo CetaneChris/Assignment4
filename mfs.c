@@ -191,48 +191,30 @@ int main()
 			else
 				printf("File Attribute: 0x%x\nFile Size: %d\nStarting Cluster Number: %d\n\n", dir[index].DIR_Attr,  dir[index].DIR_FileSize, dir[index].DIR_FirstClusterLow);
 		}else if(!strcmp(token[0],"get")){
-			//something
-		        FILE * img1;
-                        i = 10;
-                       // img1 = fopen(token[1], "w");
-                 	int index       = search(token[1]);
+			char *fname     = (char*)malloc(strlen(token[1]) * sizeof(char));
+			strncpy(fname, token[1], 11);
+			int index       = search(token[1]);
 			int size        = dir[index].DIR_FileSize;
 			int cluster     = dir[index].DIR_FirstClusterLow;
 			int root_offset = LBAToOffset(cluster);
-                        char buffer[100000];
-                        memset(buffer, 0, size + 2);
-                        fseek(img, root_offset, SEEK_SET);
-                        fread(&buffer, size, 1, img);
-                        int file_offset = LBAToOffset(6099);
-                        fseek(img, file_offset, SEEK_SET);
- 			fwrite(buffer, size, 1 , img);
-                        if(img1==NULL)
-                        {
-                         printf("error");
-                        }
-                        else
-                        {
-                         printf("suceed");
-                        }
-                       // fclose(img1);
-  	         //	dir[10] = &img1;
-		/*	char *fname = (char*)strtok(token[1], "/");
-			fname = strtok(NULL,"/");
-
-			if(fname == NULL)
-				fprintf(stderr, "Error: File already in current directory\n");
-			else
-				fopen(fname, 'w');
+			char *buffer    = (char*)malloc((size + 1) * sizeof(char));
+			memset(buffer, 0, size + 1);
+			FILE *fp = fopen(fname,"w");
 
 			while(size > 512){
-				fseek(img, LBAToOffset(cluster), SEEK_SET);
-				fwrite(fname, FAT->BPB_BytesPerSec, 1, img);
-				size   -= FAT->BPB_BytesPerSec;
-				cluster = NextLB(cluster);
-			}
-			fwrite(img, LBAToOffset(cluster), SEEK_SET);
-			fread(fname, size, 1, img);*/
+				fseek(img, root_offset, SEEK_SET);
+				fread(buffer, 512, 1, img);
+				fwrite(buffer, 512, 1, fp);
 
+				size -= 512;
+				cluster = NextLB(cluster);
+				root_offset = LBAToOffset(cluster);
+			}
+
+			fseek(img, root_offset, SEEK_SET);
+                        fread(buffer, size, 1, img);
+ 			fwrite(buffer, size, 1 , fp);
+			fclose(fp);
 		}else if(!strcmp(token[0],"cd")){
 			int index, root_offset;
 			if(token[1] != NULL){
